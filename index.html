@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>小小迷宮探險</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fcefe4;--ink:#5a1f2a;--wall:#9a6996;--path:#fffaf5;--accent:#f27a8a;--accent2:#ffd862;--blue:#7cc3dc;--card:#fff;--muted:#9b7c7f;--shadow:#ecd6c6}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Zen Maru Gothic","PingFang TC","Noto Sans TC",system-ui,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+img{-webkit-user-drag:none;user-select:none}
+.app{display:flex;flex-direction:column;height:100%;padding:8px 10px 6px;gap:6px}
+.top{display:flex;flex-direction:column;align-items:center;gap:4px}
+h1{font-size:clamp(28px,6vw,52px);margin:2px 0 0;font-weight:900;letter-spacing:.06em;white-space:nowrap}
+.levels{display:flex;justify-content:space-around;width:100%;max-width:760px}
+.lv{border:0;background:transparent;cursor:pointer;padding:0;display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit;color:var(--ink);font-weight:900;font-size:clamp(14px,2.6vw,22px)}
+.lv .ic{width:clamp(52px,12vw,104px);height:clamp(52px,12vw,104px);border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .2s,transform .15s}
+.lv .ic img{width:82%;height:82%;object-fit:contain}
+.lv.on .ic{background:var(--accent2);transform:scale(1.04)}
+.lv:active .ic{transform:scale(.94)}
+.actions{display:flex;justify-content:flex-end;gap:10px;width:100%}
+.btn{border:0;font:inherit;font-weight:900;font-size:16px;padding:9px 15px;border-radius:16px;background:#fff;color:var(--ink);box-shadow:0 3px 0 var(--shadow);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--shadow)}
+.btn.primary{background:linear-gradient(#f9a0aa,#ef6f80);color:#fff;border:2.5px solid #7a2f3a;box-shadow:0 4px 0 #b84e5c;font-size:clamp(17px,3vw,24px);padding:6px 20px;text-shadow:0 1px 0 rgba(122,47,58,.4)}
+.btn.gear{background:linear-gradient(#9fd6e8,#6cb6d2);border:2.5px solid #2f5f75;box-shadow:0 4px 0 #3f8aa6;width:clamp(44px,7vw,58px);height:clamp(44px,7vw,58px);padding:0;font-size:clamp(22px,4vw,30px)}
+.status{display:flex;gap:8px;justify-content:flex-end!important;font-weight:900;font-size:clamp(15px,2.8vw,22px);align-items:center;flex-wrap:wrap;justify-content:space-between}
+.chip{background:#fff;padding:5px 14px;border-radius:999px;box-shadow:0 3px 0 var(--shadow);white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+button.chip{border:0;font:inherit;color:inherit;cursor:pointer}
+.status:not(:has(.chip:not(.hidden))){display:none!important}
+.btn.hintb{font-size:clamp(16px,2.8vw,22px);border:2.5px solid #c9a227;background:#fff6c8;box-shadow:0 4px 0 #d6b444}
+.main{flex:1;display:flex;min-height:0}
+.stage{flex:1;position:relative;min-width:0;min-height:0}
+canvas#maze{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:pointer}
+.toast{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-weight:900;font-size:18px;pointer-events:none;opacity:0;transition:opacity .25s;white-space:nowrap;z-index:2}
+.toast.show{opacity:1}
+@media (orientation:landscape) and (max-height:900px){
+  .top{flex-direction:row;justify-content:space-between;gap:12px}
+  h1{font-size:clamp(22px,3vw,34px)}
+  .levels{width:auto;gap:4px;flex:1;max-width:560px}
+  .lv{flex-direction:row;font-size:15px;gap:2px}
+  .lv .ic{width:52px;height:52px}
+  .actions{width:auto}
+  .btn.primary{font-size:18px}
+  .btn.hintb{font-size:17px}
+  .btn.gear{width:46px;height:46px;font-size:24px}
+  .status{font-size:16px}
+}
+.hidden{display:none!important}
+.modal{position:fixed;inset:0;background:rgba(90,31,42,.35);display:flex;align-items:center;justify-content:center;z-index:20;padding:12px}
+.sheet{background:var(--card);border-radius:26px;max-width:680px;width:100%;max-height:100%;overflow:auto;padding:18px 22px 20px;box-shadow:0 12px 40px rgba(0,0,0,.2)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between}
+.sheet h2{margin:0;font-size:24px}
+.sheet h3{margin:18px 0 8px;font-size:17px;color:var(--muted)}
+.levelgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.lcard{border:3px solid transparent;background:#fff6ef;border-radius:18px;padding:8px 12px;cursor:pointer;text-align:left;font:inherit;color:var(--ink);display:flex;gap:10px;align-items:center}
+.lcard .i{width:46px;height:46px;display:flex;align-items:center;justify-content:center;font-size:32px}
+.lcard .i img{width:100%;height:100%;object-fit:contain}
+.lcard b{display:block;font-size:17px}
+.lcard small{color:var(--muted);font-size:13px}
+.lcard.on{border-color:var(--accent);background:#ffeef0}
+.custom{background:#fff6ef;border-radius:16px;padding:12px 14px;margin-top:8px}
+.custom label{display:block;font-weight:700;margin:6px 0}
+.custom input{width:100%;accent-color:var(--accent);height:28px}
+.note{margin:4px 0 0;color:var(--muted);font-size:14px}
+.pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
+.pick button{aspect-ratio:1;border-radius:18px;border:3px solid transparent;background:#fff6ef;cursor:pointer;padding:6px;display:flex;align-items:center;justify-content:center}
+.pick button img{width:100%;height:100%;object-fit:contain}
+.pick button.on{border-color:var(--accent);background:#ffeef0}
+.seg{display:inline-flex;background:#fff6ef;border-radius:14px;padding:4px;gap:4px}
+.seg button{border:0;font:inherit;font-weight:700;font-size:16px;padding:8px 16px;border-radius:10px;background:transparent;color:var(--ink);cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff}
+.toggles{display:grid;gap:6px}
+.tg{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff6ef;border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer}
+.tg small{display:block;font-weight:500;color:var(--muted);font-size:13px}
+.tg input{display:none}
+.sw{width:50px;height:30px;border-radius:999px;background:#e3d3d0;position:relative;flex:none;transition:.2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tg input:checked + .sw{background:var(--accent)}
+.tg input:checked + .sw::after{left:23px}
+.sheet-foot{display:flex;justify-content:flex-end;margin-top:18px;gap:8px}
+.sheet-foot .btn.primary{font-size:18px}
+.wincard{text-align:center;max-width:440px}
+.wincard .big{display:flex;justify-content:center;align-items:flex-end;gap:10px;height:130px;animation:pop .6s ease}
+.wincard .big img{height:100%;object-fit:contain}
+.wincard h2{font-size:26px;margin:8px 0 4px}
+.rating{font-size:40px;letter-spacing:4px;margin:4px 0}
+.wincard p{font-size:17px;margin:6px 0 14px;line-height:1.6}
+.wincard .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.wincard .btn.again{font-size:24px;padding:12px 34px;margin-top:10px;color:#fff;background:linear-gradient(#ffc94a,#ff7a2f);border:3px solid #9a3d12;box-shadow:0 5px 0 #c4561c;text-shadow:0 1px 0 rgba(154,61,18,.5);border-radius:20px}
+.wincard .btn.again:active{box-shadow:0 2px 0 #c4561c}
+@keyframes pop{0%{transform:scale(.2)}70%{transform:scale(1.12)}100%{transform:scale(1)}}
+#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <h1>小小迷宮探險</h1>
+    <div class="levels" id="quickLevels"></div>
+    <div class="actions">
+      <button class="btn hintb" id="hintBtn">💡 提示</button>
+      <button class="btn primary" id="newBtn">🔄 新迷宮</button>
+      <button class="btn gear" id="setBtn" aria-label="設定"><svg viewBox="0 0 24 24" width="82%" height="82%" fill="#fff" stroke="#2f5f75" stroke-width="1.3" stroke-linejoin="round"><path d="M10.3 2h3.4l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.7 2.9-2 1.8c.1.6.1 1.2 0 1.8l2 1.8-1.7 2.9-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.4l-.5-2.6c-.6-.2-1.2-.5-1.7-.9l-2.5.9-1.7-2.9 2-1.8a5.6 5.6 0 0 1 0-1.8l-2-1.8 1.7-2.9 2.5.9c.5-.4 1.1-.7 1.7-.9z" transform="translate(0 1.5)"/><circle cx="12" cy="11.5" r="3" fill="#6cb6d2"/></svg></button>
+    </div>
+  </div>
+  <div class="status">
+    <span class="chip hidden" id="lvName"></span>
+    <span class="chip hidden">⏱️ <b id="time">0:00</b></span>
+    <span class="chip hidden">👣 <b id="steps">0</b></span>
+    <span class="chip" id="starStat">⭐ <b id="starNum">0/0</b></span>
+    <span class="chip hidden">🏆 <b id="wins">0</b></span>
+  </div>
+  <div class="main">
+    <div class="stage" id="stage">
+      <canvas id="maze"></canvas>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="settings">
+  <div class="sheet">
+    <div class="sheet-head"><h2>⚙️ 遊戲設定</h2><button class="btn icon" id="closeSet" aria-label="關閉">✕</button></div>
+    <h3>難度</h3>
+    <div class="levelgrid" id="levelGrid"></div>
+    <div class="custom hidden" id="customBox">
+      <label>迷宮大小：<b id="sizeVal"></b><input type="range" id="sizeR" min="4" max="40" step="1"></label>
+      <label>捷徑數量：<b id="loopVal"></b><input type="range" id="loopR" min="0" max="30" step="1"></label>
+      <p class="note">捷徑越多，越多條路可以走，就越簡單。</p>
+    </div>
+    <h3>選一個主角</h3>
+    <div class="pick" id="charPick"></div>
+    <h3>終點是什麼</h3>
+    <div class="pick" id="goalPick"></div>
+    <h3>收集星星（全部撿到才能進終點）</h3>
+    <div class="seg" id="starSeg"></div>
+    <h3>其他</h3>
+    <div class="toggles" id="toggles"></div>
+    <div class="sheet-foot"><button class="btn" id="cancelSet">取消</button><button class="btn primary" id="applySet">開始新迷宮 ▶</button></div>
+  </div>
+</div>
+
+<div class="modal hidden" id="win">
+  <div class="sheet wincard">
+    <div class="big" id="winEmoji">🎉</div>
+    <h2>太棒了！走出迷宮了！</h2>
+    <div class="rating" id="rating"></div>
+    <div class="row">
+      <button class="btn again" id="againBtn">🔁 再玩一次</button>
+    </div>
+  </div>
+</div>
+<canvas id="confetti"></canvas>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+const DIRS = {
+  up:{dr:-1,dc:0,bit:1,opp:4}, right:{dr:0,dc:1,bit:2,opp:8},
+  down:{dr:1,dc:0,bit:4,opp:1}, left:{dr:0,dc:-1,bit:8,opp:2}
+};
+const DLIST = Object.values(DIRS);
+const PRESETS = [
+  {id:'tiny',  icon:'lv1', name:'超簡單', size:10, loops:.08},
+  {id:'easy',  icon:'lv2', name:'簡單',   size:14, loops:.05},
+  {id:'mid',   icon:'lv3', name:'普通',   size:18, loops:.03},
+  {id:'hard',  icon:'lv4', name:'困難',   size:23, loops:.01},
+  {id:'expert',icon:'lv5', name:'超困難',   size:30, loops:0}
+];
+const CHARS = ['girl1','girl2','girl3','girl4','girl5','girl6','girl7','girl8','girl9'];
+const GOALS = ['goal1','goal2','goal3','goal4','goal5'];
+const IMG = {};
+[...CHARS, ...GOALS, 'lv1','lv2','lv3','lv4','lv5'].forEach(n => { const im = new Image(); im.src = `assets/${n}.webp`; IMG[n] = im; });
+const imgTag = n => `<img src="assets/${n}.webp" alt="" draggable="false">`;
+const DEFAULTS = {level:'tiny',customSize:12,customLoops:10,char:'girl2',goal:'goal1',stars:0,trail:true,hint:true,fog:false,sound:true};
+
+let S = load();
+if (!CHARS.includes(S.char)) S.char = DEFAULTS.char;
+if (!GOALS.includes(S.goal)) S.goal = DEFAULTS.goal;
+let wins = 0;
+try { wins = +localStorage.getItem('maze-wins') || 0; } catch(e) {}
+function load(){ try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem('maze-settings') || '{}')); } catch(e) { return {...DEFAULTS}; } }
+function save(){ try { localStorage.setItem('maze-settings', JSON.stringify(S)); } catch(e) {} }
+
+/* ---------- 音效 ---------- */
+let AC = null;
+function unlockAudio(){
+  if (!S.sound) return;
+  try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch(e) {}
+}
+function tone(f, d, type='sine', v=.12, delay=0){
+  if (!S.sound || !AC) return;
+  try {
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t+.01); g.gain.exponentialRampToValueAtTime(.0001, t+d);
+    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+d+.03);
+  } catch(e) {}
+}
+let stepFlip = false, lastBump = 0;
+function sfx(k){
+  if (k==='step'){ stepFlip=!stepFlip; tone(stepFlip?620:700,.06,'triangle',.06); }
+  else if (k==='bump'){ const n=performance.now(); if(n-lastBump<250) return; lastBump=n; tone(150,.12,'square',.04); }
+  else if (k==='star'){ [880,1175,1568].forEach((f,i)=>tone(f,.15,'triangle',.1,i*.07)); }
+  else if (k==='hint'){ tone(990,.1,'sine',.08); tone(1320,.15,'sine',.08,.08); }
+  else if (k==='win'){ [523,659,784,1047].forEach((f,i)=>tone(f,.22,'triangle',.13,i*.12)); [523,659,784].forEach(f=>tone(f,.7,'sine',.07,.5)); }
+  else if (k==='locked'){ tone(330,.12,'sine',.08); tone(262,.18,'sine',.08,.1); }
+}
+
+/* ---------- 迷宮產生 ---------- */
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];} return a; }
+function generate(cols, rows, loops){
+  const w = Array.from({length:rows}, () => Array(cols).fill(15));
+  const vis = Array.from({length:rows}, () => Array(cols).fill(false));
+  const stack = [[0,0]]; vis[0][0] = true;
+  while (stack.length){
+    const [r,c] = stack[stack.length-1];
+    const opts = DLIST.filter(d => { const nr=r+d.dr, nc=c+d.dc; return nr>=0&&nr<rows&&nc>=0&&nc<cols&&!vis[nr][nc]; });
+    if (!opts.length){ stack.pop(); continue; }
+    const d = opts[Math.random()*opts.length|0], nr=r+d.dr, nc=c+d.dc;
+    w[r][c] &= ~d.bit; w[nr][nc] &= ~d.opp; vis[nr][nc] = true; stack.push([nr,nc]);
+  }
+  if (loops > 0){
+    for (let r=0;r<rows;r++) for (let c=0;c<cols;c++){
+      if (c<cols-1 && (w[r][c]&2) && Math.random()<loops){ w[r][c]&=~2; w[r][c+1]&=~8; }
+      if (r<rows-1 && (w[r][c]&4) && Math.random()<loops){ w[r][c]&=~4; w[r+1][c]&=~1; }
+    }
+  }
+  return w;
+}
+const key = (r,c) => r+','+c;
+function bfs(from, isTarget){
+  const prev = new Map(), q = [from]; prev.set(key(from.r,from.c), null);
+  while (q.length){
+    const cur = q.shift();
+    if (isTarget(cur)){ const path=[]; let k=key(cur.r,cur.c), p=cur; while(p){ path.unshift(p); p=prev.get(key(p.r,p.c)); } return path; }
+    for (const d of DLIST){
+      if (M.w[cur.r][cur.c] & d.bit) continue;
+      const n = {r:cur.r+d.dr, c:cur.c+d.dc}, k = key(n.r,n.c);
+      if (!prev.has(k)){ prev.set(k, cur); q.push(n); }
+    }
+  }
+  return null;
+}
+
+/* ---------- 遊戲狀態 ---------- */
+let M = null;
+function levelCfg(){
+  if (S.level === 'custom') return {size:S.customSize, loops:S.customLoops/100};
+  const p = PRESETS.find(p => p.id === S.level) || PRESETS[1];
+  return {size:p.size, loops:p.loops};
+}
+function newMaze(){
+  hideModal('win');
+  const st = $('#stage').getBoundingClientRect();
+  const aspect = Math.min(1.8, Math.max(.55, (st.height||600) / (st.width||800)));
+  const {size, loops} = levelCfg();
+  const cols = size, rows = Math.max(4, Math.min(60, Math.round(size*aspect)));
+  const w = generate(cols, rows, loops);
+  const start = {r:0,c:0}, goal = {r:rows-1,c:cols-1};
+  const cells = [];
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++){
+    if ((r===start.r&&c===start.c)||(r===goal.r&&c===goal.c)) continue;
+    if (r+c < 2) continue;
+    cells.push({r,c});
+  }
+  const stars = new Set(shuffle(cells).slice(0, Math.min(S.stars, cells.length)).map(p => key(p.r,p.c)));
+  M = {cols, rows, w, start, goal, stars, starTotal:stars.size, pos:{...start}, draw:{...start},
+       trail:new Set([key(0,0)]), steps:0, t0:0, elapsed:0, done:false, hints:0, hintPath:null, hintUntil:0, bump:null, lockedToastAt:0};
+  M.shortest = bfs(start, p => p.r===goal.r && p.c===goal.c).length - 1;
+  updateUI();
+}
+
+function canMove(name){ const d=DIRS[name]; return M && !M.done && !(M.w[M.pos.r][M.pos.c] & d.bit); }
+function move(name){
+  if (!M || M.done) return false;
+  const d = DIRS[name], {r,c} = M.pos;
+  if (M.w[r][c] & d.bit){ M.bump = {dr:d.dr, dc:d.dc, t:performance.now()}; sfx('bump'); return false; }
+  if (!M.t0) M.t0 = performance.now();
+  M.pos = {r:r+d.dr, c:c+d.dc}; M.steps++;
+  const k = key(M.pos.r, M.pos.c);
+  M.trail.add(k);
+  if (M.hintPath && performance.now() < M.hintUntil){ /* 提示期間走動就重新算 */ }
+  if (M.stars.has(k)){
+    M.stars.delete(k); sfx('star');
+    toast(M.stars.size ? `⭐ 撿到星星！還有 ${M.stars.size} 顆` : '⭐ 星星全部收集完了！快去終點！');
+  } else sfx('step');
+  if (M.pos.r===M.goal.r && M.pos.c===M.goal.c){
+    if (M.stars.size){
+      const n = performance.now();
+      if (n - M.lockedToastAt > 1500){ toast(`🔒 還要再找 ${M.stars.size} 顆星星喔！`); sfx('locked'); M.lockedToastAt = n; }
+    } else win();
+  }
+  updateUI();
+  return true;
+}
+function hint(){
+  if (!M || M.done || !S.hint) return;
+  const target = M.stars.size ? (p => M.stars.has(key(p.r,p.c))) : (p => p.r===M.goal.r && p.c===M.goal.c);
+  const path = bfs(M.pos, target);
+  if (!path) return;
+  M.hintPath = path; M.hintUntil = performance.now() + 3000; M.hints++;
+  sfx('hint');
+}
+
+function win(){
+  M.done = true; M.elapsed = performance.now() - M.t0;
+  wins++; try { localStorage.setItem('maze-wins', wins); } catch(e) {}
+  sfx('win'); confetti();
+  let stars = 3;
+  if (!M.starTotal){ const ratio = M.steps / Math.max(1, M.shortest); stars = ratio <= 1.3 ? 3 : 2; }
+  $('#rating').textContent = '⭐'.repeat(stars) + '☆'.repeat(3-stars);
+  $('#winEmoji').innerHTML = imgTag(S.char) + imgTag(S.goal);
+  let info = `花了 <b>${fmt(M.elapsed)}</b>，走了 <b>${M.steps}</b> 步`;
+  if (!M.starTotal) info += `<br>（最短的路是 ${M.shortest} 步${M.steps===M.shortest?'，你走得剛剛好！🎯':''}）`;
+  else info += `<br>收集了全部 ${M.starTotal} 顆星星 ✨`;
+  if (M.hints) info += `<br>用了 ${M.hints} 次提示 💡`;
+  const idx = PRESETS.findIndex(p => p.id === S.level);
+  setTimeout(() => showModal('win'), 700);
+  updateUI();
+}
+
+/* ---------- 畫面 ---------- */
+const cv = $('#maze'), ctx = cv.getContext('2d');
+let L = {ox:0, oy:0, cell:20, W:0, H:0};
+function resize(){
+  const r = $('#stage').getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.max(1, r.width*dpr|0); cv.height = Math.max(1, r.height*dpr|0);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  L.W = r.width; L.H = r.height;
+}
+function layout(){
+  const pad = 7;
+  L.cell = Math.max(6, Math.floor(Math.min((L.W-pad*2)/M.cols, (L.H-pad*2)/M.rows)));
+  L.ox = Math.round((L.W - L.cell*M.cols)/2); L.oy = Math.round((L.H - L.cell*M.rows)/2);
+}
+function emoji(ch, x, y, size, alpha=1){
+  ctx.save(); ctx.globalAlpha = alpha; ctx.font = `${size}px ${EMOJI_FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(ch, x, y + size*.06); ctx.restore();
+}
+function sprite(n, x, y, size, alpha=1){
+  const im = IMG[n]; if (!im || !im.complete || !im.naturalWidth) return;
+  const k = size / Math.max(im.naturalWidth, im.naturalHeight), w = im.naturalWidth*k, h = im.naturalHeight*k;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(im, x - w/2, y - h/2, w, h); ctx.restore();
+}
+function rrect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+function render(now){
+  ctx.clearRect(0,0,L.W,L.H);
+  if (!M) return;
+  layout();
+  const {ox, oy, cell} = L, {cols, rows} = M;
+  const cx = c => ox + c*cell + cell/2, cy = r => oy + r*cell + cell/2;
+
+  // 底板
+  ctx.save(); ctx.shadowColor = 'rgba(154,105,150,.12)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 4;
+  rrect(ox-6, oy-6, cols*cell+12, rows*cell+12, 14); ctx.fillStyle = '#fffaf5'; ctx.fill(); ctx.restore();
+
+  // 起點、終點底色
+  ctx.fillStyle = '#c9ecd6'; ctx.fillRect(ox+M.start.c*cell, oy+M.start.r*cell, cell, cell);
+
+  // 足跡
+  if (S.trail){
+    ctx.fillStyle = '#f7b9c4';
+    for (const k of M.trail){ const [r,c] = k.split(',').map(Number); ctx.beginPath(); ctx.arc(cx(c), cy(r), Math.max(2, cell*.11), 0, Math.PI*2); ctx.fill(); }
+  }
+
+  // 提示路線
+  if (M.hintPath && now < M.hintUntil){
+    const left = (M.hintUntil - now)/3000;
+    ctx.save(); ctx.globalAlpha = Math.min(1, left*2);
+    ctx.strokeStyle = '#ff8a5b'; ctx.lineWidth = Math.max(3, cell*.16); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.setLineDash([cell*.05, cell*.28]); ctx.lineDashOffset = -now/30;
+    ctx.beginPath(); M.hintPath.forEach((p,i) => i ? ctx.lineTo(cx(p.c), cy(p.r)) : ctx.moveTo(cx(p.c), cy(p.r))); ctx.stroke();
+    ctx.restore();
+  }
+
+  // 星星
+  for (const k of M.stars){ const [r,c] = k.split(',').map(Number); const b = Math.sin(now/300 + r + c)*cell*.05; emoji('⭐', cx(c), cy(r)+b, cell*.62); }
+
+  // 終點
+  const drawGoal = () => {
+    const b = M.stars.size ? 0 : Math.sin(now/250)*cell*.04;
+    sprite(S.goal, cx(M.goal.c), cy(M.goal.r)+b, cell*.9, M.stars.size ? .4 : 1);
+    if (M.stars.size) emoji('🔒', ox+M.goal.c*cell+cell*.75, oy+M.goal.r*cell+cell*.28, cell*.36);
+  };
+  drawGoal();
+
+  // 牆壁
+  ctx.strokeStyle = '#9a6996'; ctx.lineWidth = Math.max(2.5, cell*.1); ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++){
+    const x = ox+c*cell, y = oy+r*cell, w = M.w[r][c];
+    if (w&1){ ctx.moveTo(x,y); ctx.lineTo(x+cell,y); }
+    if (w&8){ ctx.moveTo(x,y); ctx.lineTo(x,y+cell); }
+    if (c===cols-1 && (w&2)){ ctx.moveTo(x+cell,y); ctx.lineTo(x+cell,y+cell); }
+    if (r===rows-1 && (w&4)){ ctx.moveTo(x,y+cell); ctx.lineTo(x+cell,y+cell); }
+  }
+  ctx.stroke();
+
+  // 主角位置（平滑移動）
+  M.draw.r += (M.pos.r - M.draw.r)*.35; M.draw.c += (M.pos.c - M.draw.c)*.35;
+  let px = cx(M.draw.c), py = cy(M.draw.r);
+  if (M.bump){ const t = (now - M.bump.t)/180; if (t < 1){ const o = Math.sin(t*Math.PI)*cell*.14; px += M.bump.dc*o; py += M.bump.dr*o; } else M.bump = null; }
+
+  // 迷霧
+  if (S.fog && !M.done){
+    const R = cell*2.4;
+    ctx.save();
+    rrect(ox-6, oy-6, cols*cell+12, rows*cell+12, 14); ctx.clip();
+    ctx.beginPath(); ctx.rect(ox-8, oy-8, cols*cell+16, rows*cell+16); ctx.arc(px, py, R, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(46,36,80,.94)'; ctx.fill('evenodd');
+    const g = ctx.createRadialGradient(px, py, R*.55, px, py, R);
+    g.addColorStop(0, 'rgba(46,36,80,0)'); g.addColorStop(1, 'rgba(46,36,80,.94)');
+    ctx.beginPath(); ctx.arc(px, py, R+1, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
+    ctx.restore();
+    ctx.save(); ctx.shadowColor = '#ffd166'; ctx.shadowBlur = 18; drawGoal(); ctx.restore();
+  }
+
+  // 主角
+  const dist = Math.abs(M.pos.r - M.draw.r) + Math.abs(M.pos.c - M.draw.c);
+  const hop = Math.min(.25, dist*.5)*cell;
+  ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(px, py+cell*.3, cell*.26, cell*.08, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  sprite(S.char, px, py - hop - cell*.04, cell*.95);
+}
+function loop(now){ render(now); requestAnimationFrame(loop); }
+
+/* ---------- 介面更新 ---------- */
+function fmt(ms){ const s = Math.floor(ms/1000); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+function levelLabel(){
+  if (S.level === 'custom') return `🛠️ 自訂 ${S.customSize}×${M ? M.rows : ''}`;
+  const p = PRESETS.find(p => p.id === S.level); return `🧭 ${p.name}・${p.size}×${M ? M.rows : ''}`;
+}
+function updateUI(){
+  $('#lvName').textContent = levelLabel();
+  $('#steps').textContent = M ? M.steps : 0;
+  $('#wins').textContent = wins;
+  $('#starStat').classList.toggle('hidden', !M || !M.starTotal);
+  if (M) $('#starNum').textContent = `${M.starTotal - M.stars.size}/${M.starTotal}`;
+  $('#hintBtn').classList.toggle('hidden', !S.hint);
+  document.querySelectorAll('#quickLevels .lv').forEach(b => b.classList.toggle('on', b.dataset.id === S.level));
+}
+setInterval(() => {
+  if (!M) return;
+  const ms = M.done ? M.elapsed : (M.t0 ? performance.now() - M.t0 : 0);
+  $('#time').textContent = fmt(ms);
+}, 250);
+
+let toastTimer = 0;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
+
+/* ---------- 操作：鍵盤 ---------- */
+const KEYMAP = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right',W:'up',S:'down',A:'left',D:'right'};
+document.addEventListener('keydown', e => {
+  unlockAudio();
+  if (!$('#win').classList.contains('hidden')){ if (e.key==='Enter'||e.key===' '){ e.preventDefault(); newMaze(); } return; }
+  if (!$('#settings').classList.contains('hidden')){ if (e.key==='Escape') hideModal('settings'); return; }
+  if (KEYMAP[e.key]){ e.preventDefault(); move(KEYMAP[e.key]); }
+  else if (e.key==='h'||e.key==='H'||e.key===' '){ e.preventDefault(); hint(); }
+  else if (e.key==='n'||e.key==='N'){ newMaze(); }
+});
+document.addEventListener('pointerdown', unlockAudio);
+
+/* ---------- 操作：手指拖曳 / 點擊 ---------- */
+let dragging = false;
+function cellAt(e){
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const c = Math.floor((x - L.ox)/L.cell), rr = Math.floor((y - L.oy)/L.cell);
+  if (c<0||rr<0||c>=M.cols||rr>=M.rows) return null;
+  return {r:rr, c};
+}
+function towards(e, firstTouch){
+  if (!M || M.done) return;
+  const t = cellAt(e); if (!t) return;
+  if (firstTouch && Math.abs(t.r-M.pos.r) + Math.abs(t.c-M.pos.c) > 1 && !(t.r===M.pos.r||t.c===M.pos.c)) return;
+  let prev = null;
+  for (let i=0; i<80; i++){
+    const dr = t.r - M.pos.r, dc = t.c - M.pos.c;
+    if (!dr && !dc) break;
+    const h = dc ? (dc>0?'right':'left') : null, v = dr ? (dr>0?'down':'up') : null;
+    const tries = Math.abs(dc) >= Math.abs(dr) ? [h, v] : [v, h];
+    let moved = false;
+    for (const n of tries){
+      if (!n || !canMove(n)) continue;
+      const d = DIRS[n];
+      if (prev && M.pos.r+d.dr===prev.r && M.pos.c+d.dc===prev.c) continue;
+      prev = {...M.pos}; move(n); moved = true; break;
+    }
+    if (!moved){ if (i===0 && tries[0]) move(tries[0]); break; }
+    if (M.done) break;
+  }
+}
+cv.addEventListener('pointerdown', e => { dragging = true; try { cv.setPointerCapture(e.pointerId); } catch(_){} towards(e, true); });
+cv.addEventListener('pointermove', e => { if (dragging) towards(e, false); });
+['pointerup','pointercancel','lostpointercapture'].forEach(ev => cv.addEventListener(ev, () => dragging = false));
+
+$('#hintBtn').addEventListener('click', hint);
+$('#newBtn').addEventListener('click', newMaze);
+
+/* ---------- 難度快速切換 ---------- */
+PRESETS.forEach(p => {
+  const b = document.createElement('button'); b.className = 'lv'; b.dataset.id = p.id; b.innerHTML = `<span class="ic">${imgTag(p.icon)}</span><span>${p.name}</span>`;
+  b.title = p.name; b.setAttribute('aria-label', b.title);
+  b.addEventListener('click', () => { S.level = p.id; save(); newMaze(); toast(levelLabel()); });
+  $('#quickLevels').appendChild(b);
+});
+
+/* ---------- 設定視窗 ---------- */
+let D = null;
+function showModal(id){ $('#'+id).classList.remove('hidden'); }
+function hideModal(id){ $('#'+id).classList.add('hidden'); }
+function renderSettings(){
+  const lg = $('#levelGrid'); lg.innerHTML = '';
+  [...PRESETS, {id:'custom', icon:'🛠️', name:'自訂', note:'自己調整大小'}].forEach(p => {
+    const b = document.createElement('button'); b.className = 'lcard' + (D.level===p.id ? ' on' : '');
+    b.innerHTML = `<span class="i">${IMG[p.icon] ? imgTag(p.icon) : p.icon}</span><span><b>${p.name}</b><small>${p.size ? `${p.size} 格寬` : p.note}</small></span>`;
+    b.onclick = () => { D.level = p.id; renderSettings(); };
+    lg.appendChild(b);
+  });
+  $('#customBox').classList.toggle('hidden', D.level !== 'custom');
+  $('#sizeR').value = D.customSize; $('#sizeVal').textContent = `${D.customSize} 格寬`;
+  $('#loopR').value = D.customLoops; $('#loopVal').textContent = D.customLoops===0 ? '沒有（只有一條路）' : D.customLoops < 10 ? '少' : D.customLoops < 20 ? '中' : '多';
+  const pick = (el, list, prop) => { el.innerHTML = ''; list.forEach(ch => { const b = document.createElement('button'); b.innerHTML = imgTag(ch); if (D[prop]===ch) b.className = 'on'; b.onclick = () => { D[prop] = ch; renderSettings(); }; el.appendChild(b); }); };
+  pick($('#charPick'), CHARS, 'char'); pick($('#goalPick'), GOALS, 'goal');
+  const seg = $('#starSeg'); seg.innerHTML = '';
+  [[0,'不用'],[3,'3 顆'],[5,'5 顆'],[8,'8 顆']].forEach(([n,label]) => { const b = document.createElement('button'); b.textContent = label; if (D.stars===n) b.className = 'on'; b.onclick = () => { D.stars = n; renderSettings(); }; seg.appendChild(b); });
+  const tgs = $('#toggles'); tgs.innerHTML = '';
+  [['trail','👣 顯示走過的足跡','看得出哪裡走過了'],
+   ['hint','💡 提示按鈕','卡住時按一下，會出現路線 3 秒'],
+   ['fog','🌫️ 迷霧模式','只看得到身邊，適合大一點的孩子'],
+   ['sound','🔊 音效','']].forEach(([k,label,sub]) => {
+    const l = document.createElement('label'); l.className = 'tg';
+    l.innerHTML = `<span>${label}${sub ? `<small>${sub}</small>` : ''}</span><input type="checkbox" ${D[k] ? 'checked' : ''}><span class="sw"></span>`;
+    l.querySelector('input').onchange = e => { D[k] = e.target.checked; };
+    tgs.appendChild(l);
+  });
+}
+$('#sizeR').addEventListener('input', e => { D.customSize = +e.target.value; renderSettings(); });
+$('#loopR').addEventListener('input', e => { D.customLoops = +e.target.value; renderSettings(); });
+$('#setBtn').addEventListener('click', () => { D = {...S}; renderSettings(); showModal('settings'); });
+$('#closeSet').addEventListener('click', () => hideModal('settings'));
+$('#cancelSet').addEventListener('click', () => hideModal('settings'));
+$('#applySet').addEventListener('click', () => { S = {...D}; save(); hideModal('settings'); requestAnimationFrame(() => { resize(); newMaze(); unlockAudio(); }); });
+$('#againBtn').addEventListener('click', newMaze);
+
+/* ---------- 彩帶 ---------- */
+function confetti(){
+  const c = $('#confetti'), x = c.getContext('2d'), dpr = window.devicePixelRatio || 1;
+  c.width = innerWidth*dpr; c.height = innerHeight*dpr; x.setTransform(dpr,0,0,dpr,0,0);
+  const colors = ['#ff8a5b','#ffd166','#06d6a0','#118ab2','#ef476f','#b388eb'];
+  const ps = Array.from({length:160}, () => ({x:innerWidth/2 + (Math.random()-.5)*200, y:innerHeight*.45, vx:(Math.random()-.5)*14, vy:-Math.random()*14-4, s:6+Math.random()*7, r:Math.random()*6, vr:(Math.random()-.5)*.3, col:colors[Math.random()*colors.length|0]}));
+  const t0 = performance.now();
+  (function step(now){
+    x.clearRect(0,0,innerWidth,innerHeight);
+    const t = now - t0;
+    ps.forEach(p => { p.vy += .32; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      x.save(); x.globalAlpha = Math.max(0, 1 - t/3200); x.translate(p.x,p.y); x.rotate(p.r); x.fillStyle = p.col; x.fillRect(-p.s/2,-p.s/4,p.s,p.s/2); x.restore(); });
+    if (t < 3200) requestAnimationFrame(step); else x.clearRect(0,0,innerWidth,innerHeight);
+  })(t0);
+}
+
+/* ---------- 啟動 ---------- */
+new ResizeObserver(resize).observe($('#stage'));
+updateUI();
+requestAnimationFrame(() => { resize(); newMaze(); requestAnimationFrame(loop); });
+})();
+</script>
+</body>
+</html>
